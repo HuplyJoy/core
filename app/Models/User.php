@@ -6,11 +6,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Bavix\Wallet\Traits\HasWallet;
+use Bavix\Wallet\Interfaces\Wallet;
 
-class User extends Authenticatable
+class User extends Authenticatable implements Wallet
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasWallet;
 
     /**
      * The attributes that are mass assignable.
@@ -44,5 +47,33 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function stores()
+    {
+        return $this->belongsToMany(Store::class, 'user_store')
+            ->withPivot(['note','type'])
+            ->withTimestamps();
+    }
+
+    public function storesOfType(string $type)
+    {
+        return $this->stores()->wherePivot('type', $type);
+    }
+
+    public function goals()
+    {
+        return $this->belongsToMany(Goal::class, 'user_goal')
+            ->withTimestamps();
+    }
+
+    public function scopeHasAnyGoals($query)
+    {
+        return $query->whereHas('goals');
+    }
+
+    public function scopeHasStoreItem($query)
+    {
+        return $query->whereHas('stores', fn($q) => $q->where('type', 'store'));
     }
 }
